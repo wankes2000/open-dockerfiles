@@ -17,7 +17,7 @@ if [ -z $IAM_ROLE ] &&  [ -z $AWS_ACCESS_KEY_ID ]; then
   exit 1
 fi
 
-# Abort if the AWS_SECRET_ACCESS_KEY was not provided if an IAM_ROLE was not provided neither. 
+# Abort if the AWS_SECRET_ACCESS_KEY was not provided if an IAM_ROLE was not provided neither.
 if [ -z $IAM_ROLE ] && [ -z $AWS_SECRET_ACCESS_KEY ]; then
   echo "You need to set AWS_SECRET_ACCESS_KEY environment variable. Aborting!"
   exit 1
@@ -31,15 +31,17 @@ if [ -z $IAM_ROLE ] && [ ! -z $AWS_ACCESS_KEY_ID ] && [ ! -z $AWS_SECRET_ACCESS_
 fi
 
 # Update the vsftpd.conf file to include the IP address if running on an EC2 instance
-if curl -s http://instance-data.ec2.internal > /dev/null ; then
-  IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+if curl -s http://169.254.170.2/v2/metadata > /dev/null ; then
+  echo "Retrieve public IP"
+  IP=$(curl -s http://169.254.170.2/v2/metadata | jq -r .Containers[0].Networks[0].IPv4Addresses[0])
   sed -i "s/^pasv_address=/pasv_address=$IP/" /etc/vsftpd.conf
 else
+  echo "Error retrieving public IP"
   exit 1
 fi
 
 # start s3 fuse
-# Code above is not needed if the IAM role is attaced to EC2 instance 
+# Code above is not needed if the IAM role is attaced to EC2 instance
 # s3fs provides the iam_role option to grab those credentials automatically
-/usr/local/bin/s3fs $FTP_BUCKET /home/aws/s3bucket -o allow_other -o mp_umask="0022" -o iam_role="$IAM_ROLE" #-d -d -f -o f2 -o curldbg
+/usr/local/bin/s3fs $FTP_BUCKET /home/aws/s3bucket -o allow_other -o mp_umask="0022" -o iam_role="$IAM_ROLE" -o ecs -o dbglevel="dbg" -o curldbg -f  #-d -d -f -o f2 -o curldbg
 /usr/local/users.sh
